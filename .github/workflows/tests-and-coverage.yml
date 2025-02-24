@@ -35,13 +35,13 @@ jobs:
 
       - name: Generate coverage report
         if: success()  # Only run if tests pass
+        shell: pwsh  # Explicitly use PowerShell
         run: |
-          # Ensure the lcov file is generated
-          dir
-          if not exist coverage.lcov (
-            echo "Coverage file not found!"
+          # Check if coverage.lcov exists using PowerShell syntax
+          if (-not (Test-Path coverage.lcov)) {
+            Write-Error "Coverage file not found!"
             exit 1
-          )
+          }
 
       - name: Report coverage
         if: success()
