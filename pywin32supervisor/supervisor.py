@@ -234,9 +234,12 @@ class MyServiceFramework(win32serviceutil.ServiceFramework):
             if program.autostart:
                 program.start_program()
 
+    def is_running(self):
+        return self.running
+
     def monitor_programs(self):
         """Monitors the running programs and restarts if necessary."""
-        while self.running:
+        while self.is_running():
             time.sleep(1)
             for program in self.programs.values():
                 if program.process is not None and program.process.poll() is not None and not program.is_starting:

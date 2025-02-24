@@ -1,4 +1,5 @@
 import configparser
+import time
 import unittest
 from unittest.mock import Mock, mock_open, patch
 
@@ -90,6 +91,62 @@ class TestProgram(unittest.TestCase):
             program.start_program()
 
         self.assertEqual(program.backoff_index, 0)  # Should reset after successful start
+
+    def test_program_init_job_handle_and_backoff(self):
+        job_handle = Mock()
+        program = Program("testprog", self.config, job_handle)
+        self.assertEqual(program.job_handle, job_handle)
+        self.assertEqual(program.backoff_periods, [0, 1, 2, 5, 10, 15])
+
+    @patch("os.makedirs")
+    @patch("subprocess.Popen", side_effect=OSError("Test error"))
+    @patch("builtins.open", new_callable=mock_open)
+    def test_start_program_oserror(self, mock_file, mock_popen, mock_makedirs):
+        program = Program("testprog", self.config, self.job_handle)
+        with patch("servicemanager.LogErrorMsg") as mock_log:
+            program.start_program()
+            mock_log.assert_called_once_with("Failed to start testprog: Test error")
+        self.assertIsNone(program.process)
+        self.assertFalse(program.is_starting)
+
+    @patch("os.makedirs")
+    @patch("subprocess.Popen", side_effect=ValueError("Invalid command"))
+    @patch("builtins.open", new_callable=mock_open)
+    def test_start_program_valueerror(self, mock_file, mock_popen, mock_makedirs):
+        program = Program("testprog", self.config, self.job_handle)
+        with patch("servicemanager.LogErrorMsg") as mock_log:
+            program.start_program()
+            mock_log.assert_called_once_with("Failed to start testprog: Invalid command")
+        self.assertIsNone(program.process)
+        self.assertFalse(program.is_starting)
+
+    @patch("os.makedirs")
+    @patch("subprocess.Popen")
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("win32api.OpenProcess")
+    @patch("win32job.AssignProcessToJobObject")
+    @patch("time.sleep")
+    def test_check_start_success_reset_backoff(
+        self,
+        mock_sleep,
+        mock_assign,
+        mock_open_process,
+        mock_file,
+        mock_popen,
+        mock_makedirs,
+    ):
+        mock_process = Mock()
+        mock_process.poll = Mock(return_value=None)
+        mock_process.pid = 123
+        mock_popen.return_value = mock_process
+        mock_open_process.return_value = Mock()
+
+        program = Program("testprog", self.config, self.job_handle)
+        program.backoff_index = 3  # Set a non-zero value
+        program.start_program()
+        time.sleep(1.1)  # Simulate thread execution
+        self.assertEqual(program.backoff_index, 0)  # Should reset
+        self.assertFalse(program.is_starting)
 
 
 if __name__ == "__main__":

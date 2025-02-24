@@ -49,15 +49,5 @@ jobs:
         with:
           lcov-file: ./coverage.lcov
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          update-comment: true  # Update existing comment if it exists
+          delete-old-comments: true
           title: "Code Coverage Report"
-
-      - name: Comment coverage on PR
-        if: success()
-        uses: peter-evans/create-or-update-comment@v4
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          body: |
-            ## Code Coverage Report
-            Coverage report has been generated. See the detailed results in the workflow run artifacts or the comment above from `lcov-reporter-action`.
-          token: ${{ secrets.GITHUB_TOKEN }}

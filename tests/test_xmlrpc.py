@@ -50,6 +50,36 @@ class TestXMLRPC(unittest.TestCase):
         result = self.service.stop("nonexistent")
         self.assertEqual(result, "Program 'nonexistent' not found")
 
+    def test_status_starting_state(self):
+        self.service.programs["prog1"].is_starting = True
+        status = self.service.status()
+        self.assertEqual(status[0]["state"], "STARTING")
+        self.assertEqual(status[0]["uptime"], 0)
+
+    def test_start_single_program(self):
+        self.service.programs["prog1"].start_program = Mock()
+        result = self.service.start("prog1")
+        self.service.programs["prog1"].start_program.assert_called_once()
+        self.assertEqual(result, "OK")
+
+    def test_start_program_not_found(self):
+        result = self.service.start("nonexistent")
+        self.assertEqual(result, "Program 'nonexistent' not found")
+
+    def test_stop_single_program(self):
+        self.service.programs["prog1"].stop_program = Mock()
+        result = self.service.stop("prog1")
+        self.service.programs["prog1"].stop_program.assert_called_once()
+        self.assertEqual(result, "OK")
+
+    def test_restart_single_program(self):
+        self.service.programs["prog1"].stop_program = Mock()
+        self.service.programs["prog1"].start_program = Mock()
+        result = self.service.restart("prog1")
+        self.service.programs["prog1"].stop_program.assert_called_once()
+        self.service.programs["prog1"].start_program.assert_called_once()
+        self.assertEqual(result, "OK")
+
 
 if __name__ == "__main__":
     unittest.main()
