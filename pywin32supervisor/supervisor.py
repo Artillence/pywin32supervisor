@@ -166,7 +166,11 @@ class MyServiceFramework(win32serviceutil.ServiceFramework):
         parser = argparse.ArgumentParser()
         parser.add_argument("--config", required=True)
         parser.add_argument("--env", action="append", type=lambda kv: kv.split("=", 1), help="Environment variable as NAME=VALUE (can be repeated)")
-        return parser.parse_args(sys.argv[2:])  # Skip script and "service"
+
+        argv = sys.argv[2:]
+        if argv[0] == "debug":
+            argv = argv[1:]
+        return parser.parse_args(argv)  # Skip script and "service"
 
     def load_config(self, config_path):
         """Loads and processes the configuration file."""
@@ -380,8 +384,8 @@ def handle_service_command(args, parser):
 
     keys_to_remove = {"--service", "--config", "--env"}
     filtered_argv = [*filter_args(sys.argv, keys_to_remove), args.service]
-    print(filtered_argv)  # noqa: T201
-    sys.frozen = True
+
+    sys.frozen = True  # For debug command to work properly. See also HandleCommandLine source code.
     win32serviceutil.HandleCommandLine(MyServiceFramework, argv=filtered_argv)
 
 
