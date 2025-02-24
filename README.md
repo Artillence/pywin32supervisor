@@ -1,6 +1,6 @@
 # pywin32supervisor
 
-A Python-based Windows service for process supervision, inspired by the Unix `supervisor` tool. This package leverages `pywin32` to manage subprocesses on Windows, providing features like autostart, autorestart, logging, and remote control via an XML-RPC interface.
+A Python-based Windows service for process supervision, inspired by the Unix [`supervisor`](http://supervisord.org/) tool. This package leverages [`pywin32`](https://github.com/mhammond/pywin32) to manage subprocesses on Windows, providing features like autostart, autorestart, logging, and remote control via an [XML-RPC](https://docs.python.org/3/library/xmlrpc.html) interface.
 
 ---
 
@@ -73,7 +73,7 @@ pywin32supervisor status
 - `restart <program>`: Restarts a specific program (or `all`).
 
 ### Environment Variables
-Use the `--env` flag to pass environment variables (e.g., `--env KEY=VALUE`). These are prefixed with `ENV_` in the environment and can be referenced in the config file as `%(KEY)s`.
+Use the `--env` flag to pass environment variables (e.g., `--env KEY=VALUE`). These are prefixed with `ENV_` in the environment and can be referenced in the config file as `%(ENV_KEY)s`.
 
 Example:
 ```bash
@@ -82,7 +82,7 @@ pywin32supervisor --service install --config "C:\supervisord.conf" --env PYTHON_
 In `supervisord.conf`:
 ```ini
 [program:myapp]
-command=%(PYTHON_PATH)s my_script.py
+command=%(ENV_PYTHON_PATH)s my_script.py
 ```
 
 ---
@@ -137,7 +137,6 @@ pywin32supervisor/
    ```bash
    pip install -e ".[dev]"
    ```
-   Note: Add `[dev]` extras in `pyproject.toml` if needed (e.g., `ruff`, `pre-commit`).
 
 2. Install pre-commit hooks:
    ```bash

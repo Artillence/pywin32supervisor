@@ -16,6 +16,12 @@ dependencies = [
     "pywin32==308"
 ]
 
+[project.optional-dependencies]
+dev = [
+    "ruff==0.9.7",        # Matches the version in .pre-commit-config.yaml
+    "pre-commit>=4.0.1",  # Ensure compatibility with modern setups
+]
+
 [tool.setuptools]
 packages = { find = {} }
 include-package-data = true
