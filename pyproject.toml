@@ -20,6 +20,8 @@ dependencies = [
 dev = [
     "ruff==0.9.7",        # Matches the version in .pre-commit-config.yaml
     "pre-commit>=4.0.1",  # Ensure compatibility with modern setups
+    "pytest>=7.0.0",      # Added for running tests
+    "pytest-cov>=4.0.0"   # Added for code coverage
 ]
 
 [tool.setuptools]
