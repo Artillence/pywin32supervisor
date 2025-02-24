@@ -18,9 +18,7 @@ import win32serviceutil
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.StreamHandler(),  # Logs to console
-    ],
+    handlers=[logging.StreamHandler()],
 )
 
 
@@ -38,12 +36,16 @@ class Program:
         self.process = None
         self.start_time = None
         self.restart_count = 0
+        self.backoff_index = 0
+        self.backoff_periods = [0, 1, 2, 5, 10, 15]  # Backoff periods in seconds
         self.stdout_file = None
         self.stderr_file = None
+        self.is_starting = False
 
     def start_program(self):
         if self.process is not None and self.process.poll() is None:
             return  # Already running
+        self.is_starting = True
         try:
             if self.stdout_logfile:
                 os.makedirs(os.path.dirname(self.stdout_logfile), exist_ok=True)
@@ -64,8 +66,18 @@ class Program:
             cmd_args = self.command.split()
             self.process = subprocess.Popen(cmd_args, stdout=self.stdout_file, stderr=stderr)  # noqa: S603 `subprocess` call: check for execution of untrusted input. user has to make sure that cmd_args is safe.
             self.start_time = time.time()
+            # Reset backoff if process successfully starts
+            threading.Thread(target=self._check_start_success, daemon=True).start()
         except (OSError, ValueError) as e:
             servicemanager.LogErrorMsg(f"Failed to start {self.name}: {e!s}")
+            self.is_starting = False
+
+    def _check_start_success(self):
+        """Check if the process starts successfully and reset backoff."""
+        time.sleep(1)  # Give it a moment to start
+        if self.process and self.process.poll() is None:
+            self.backoff_index = 0  # Reset backoff on successful start
+        self.is_starting = False
 
     def stop_program(self):
         if self.process is not None and self.process.poll() is None:
@@ -76,8 +88,9 @@ class Program:
                 self.process.kill()
         self._close_files()
         self.process = None
+        self.is_starting = False
 
-    def close_files(self):
+    def _close_files(self):
         """Closes log file handles if they are open."""
         if self.stdout_file:
             self.stdout_file.close()
@@ -175,11 +188,13 @@ class MyServiceFramework(win32serviceutil.ServiceFramework):
         while self.running:
             time.sleep(1)
             for program in self.programs.values():
-                if program.process is not None and program.process.poll() is not None:
-                    # Process exited
-                    program.close_files()
+                if program.process is not None and program.process.poll() is not None and not program.is_starting:
+                    program._close_files()
                     if program.autorestart:
+                        backoff = program.backoff_periods[min(program.backoff_index, len(program.backoff_periods) - 1)]
+                        time.sleep(backoff)
                         program.restart_count += 1
+                        program.backoff_index = min(program.backoff_index + 1, len(program.backoff_periods) - 1)
                         program.start_program()
 
     def SvcStop(self):  # noqa: N802 (Function name should be lowercase): overriding interface method.
@@ -195,7 +210,10 @@ class MyServiceFramework(win32serviceutil.ServiceFramework):
     def status(self):
         status_list = []
         for program in self.programs.values():
-            if program.process is not None and program.process.poll() is None:
+            if program.is_starting:
+                state = "STARTING"
+                uptime = 0
+            elif program.process is not None and program.process.poll() is None:
                 state = "RUNNING"
                 uptime = time.time() - program.start_time
             else:
@@ -207,7 +225,7 @@ class MyServiceFramework(win32serviceutil.ServiceFramework):
                     "state": state,
                     "uptime": uptime,
                     "restart_count": program.restart_count,
-                },
+                }
             )
         return status_list
 
@@ -339,7 +357,6 @@ def handle_program_command(args):
             print_result(server.stop(args.program), args.program, "Stopped")
         elif args.command == "restart":
             print_result(server.restart(args.program), args.program, "Restarted")
-
     except ConnectionRefusedError:
         logging.exception("Service is not running. Please start the service first with 'python script.py --service start'.")
 
@@ -347,18 +364,37 @@ def handle_program_command(args):
         logging.exception("Error")
 
 
+def format_uptime(uptime):
+    """Convert uptime in seconds to days, hours, minutes, seconds."""
+    if uptime <= 0:
+        return "N/A"
+    days, remainder = divmod(int(uptime), 86400)
+    hours, remainder = divmod(remainder, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{days}d {hours}h {minutes}m {seconds}s"
+
+
 def print_status(server):
     """Retrieve and log the status of programs from the XML-RPC server."""
     status = server.status()
+    headers = ["Name", "State", "Uptime", "Restarts"]
+    col_widths = [20, 10, 20, 10]
+    
+    # Print header
+    header_row = "".join(f"{header:<{width}}" for header, width in zip(headers, col_widths))
+    logging.info(header_row)
+    logging.info("-" * sum(col_widths))
+    
+    # Print status rows
     for s in status:
-        uptime = f"{s['uptime']:.2f} seconds" if s["uptime"] > 0 else "N/A"
-        logging.info(
-            "%s: %s, Uptime: %s, Restarts: %d",
-            s["name"],
-            s["state"],
-            uptime,
-            s["restart_count"],
+        uptime_str = format_uptime(s["uptime"])
+        row = (
+            f"{s['name']:<{col_widths[0]}}"
+            f"{s['state']:<{col_widths[1]}}"
+            f"{uptime_str:<{col_widths[2]}}"
+            f"{s['restart_count']:<{col_widths[3]}}"
         )
+        logging.info(row)
 
 
 def print_result(result, program, action):
