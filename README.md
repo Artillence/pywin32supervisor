@@ -15,4 +15,6 @@ sc delete MySupervisorService
 python supervisor.py --service install --config "C:\tmp\ims_windows_deploy\inventory_source\configs\server_configs\supervisord.conf" --env PYTHON_PATH=C:\tmp\ims_windows_deploy\venv\Scripts\python.exe --env INVENTORY_INSTALL_DIR=C:\tmp\ims_windows_deploy\inventory_source
 python supervisor.py --service start
 python supervisor.py status
+
+pywin32supervisor --service install --config "C:\tmp\ims_windows_deploy\inventory_source\configs\server_configs\supervisord.conf" --env PYTHON_PATH=C:\tmp\ims_windows_deploy\venv\Scripts\python.exe --env INVENTORY_INSTALL_DIR=C:\tmp\ims_windows_deploy\inventory_source
 ```

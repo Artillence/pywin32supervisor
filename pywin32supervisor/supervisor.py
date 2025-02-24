@@ -90,7 +90,7 @@ class Program:
     def _add_process_to_job(self):
         # Convert process ID to handle with required permissions
         perms = win32con.PROCESS_TERMINATE | win32con.PROCESS_SET_QUOTA
-        process_handle = win32api.OpenProcess(perms, bInherit=False, pid=self.process.pid)
+        process_handle = win32api.OpenProcess(perms, False, self.process.pid)  # noqa: FBT003 Boolean positional value in function call
 
         # Assign the child process to the Job Object
         win32job.AssignProcessToJobObject(self.job_handle, process_handle)
