@@ -116,7 +116,10 @@ class MyServiceFramework(win32serviceutil.ServiceFramework):
         # Initialize and parse arguments
         args = self.parse_arguments()
         self.config_path = args.config
-        os.environ["ENV_INVENTORY_INSTALL_DIR"] = args.install_dir
+        # Set environment variables from args.env
+        if args.env:
+            for key, value in args.env:
+                os.environ[f"ENV_{key}"] = value
 
         # Load and process config
         config = self.load_config(self.config_path)
@@ -141,7 +144,7 @@ class MyServiceFramework(win32serviceutil.ServiceFramework):
         """Parses command-line arguments."""
         parser = argparse.ArgumentParser()
         parser.add_argument("--config", required=True)
-        parser.add_argument("--install-dir", required=True)
+        parser.add_argument("--env", action="append", type=lambda kv: kv.split("=", 1), help="Environment variable as NAME=VALUE (can be repeated)")
         return parser.parse_args(sys.argv[2:])  # Skip script and "service"
 
     def load_config(self, config_path):
@@ -309,7 +312,7 @@ def create_argument_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("--service", choices=["install", "remove", "start", "stop", "restart", "debug"])
     parser.add_argument("--config")
-    parser.add_argument("--install-dir")
+    parser.add_argument("--env", action="append", type=lambda kv: kv.split("=", 1), help="Environment variable as NAME=VALUE (can be repeated)")
     parser.add_argument("command", nargs="?", choices=["status", "start", "stop", "restart"])
     parser.add_argument("program", nargs="?", default="all")
     return parser
@@ -329,9 +332,12 @@ def handle_service_command(args, parser):
     """Handle service-related commands like install, start, stop, etc."""
     if args.service == "install":
         validate_install_arguments(args, parser)
-        MyServiceFramework._exe_args_ += f' service --config "{args.config}" --install-dir "{args.install_dir}"'
+        MyServiceFramework._exe_args_ += f' service --config "{args.config}"'
+        if args.env:
+            for key, value in args.env:
+                MyServiceFramework._exe_args_ += f' --env "{key}={value}"'
 
-    keys_to_remove = {"--service", "--config", "--install-dir"}
+    keys_to_remove = {"--service", "--config", "--env"}
     filtered_argv = [*filter_args(sys.argv, keys_to_remove), args.service]
 
     sys.frozen = True
@@ -340,8 +346,8 @@ def handle_service_command(args, parser):
 
 def validate_install_arguments(args, parser):
     """Ensure required arguments are provided for service installation."""
-    if not args.config or not args.install_dir:
-        parser.error("--config and --install-dir are required for install")
+    if not args.config:
+        parser.error("--config is required for install")
 
 
 def handle_program_command(args):
