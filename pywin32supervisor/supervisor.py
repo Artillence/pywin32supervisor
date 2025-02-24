@@ -323,7 +323,7 @@ def filter_args(args, keys_to_remove):
     return filtered_args
 
 
-def init():
+def main():
     """Main entry point for initializing the service or command-line execution."""
     if is_service_mode():
         start_service_mode()
@@ -460,4 +460,4 @@ def print_result(result, program, action):
 
 
 if __name__ == "__main__":
-    init()
+    main()
