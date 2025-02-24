@@ -105,8 +105,8 @@ class Program:
 
 
 class MyServiceFramework(win32serviceutil.ServiceFramework):
-    _svc_name_ = "MySupervisorService"
-    _svc_display_name_ = "My Supervisor Service"
+    _svc_name_ = "PyWin32Supervisor"
+    _svc_display_name_ = "Python Win32 Supervisor Service"
     _exe_name_ = sys.executable
     _exe_args_ = '-u -E "' + os.path.abspath(__file__) + '"'
 
@@ -365,31 +365,49 @@ def handle_program_command(args):
 
 
 def format_uptime(uptime):
-    """Convert uptime in seconds to days, hours, minutes, seconds."""
+    """Convert uptime in seconds to a human-readable format, omitting zero values."""
     if uptime <= 0:
         return "N/A"
+
     days, remainder = divmod(int(uptime), 86400)
     hours, remainder = divmod(remainder, 3600)
     minutes, seconds = divmod(remainder, 60)
-    return f"{days}d {hours}h {minutes}m {seconds}s"
+
+    parts = []
+    if days:
+        parts.append(f"{days}d")
+    if hours:
+        parts.append(f"{hours}h")
+    if minutes:
+        parts.append(f"{minutes}m")
+    if seconds:
+        parts.append(f"{seconds}s")
+
+    return " ".join(parts)
 
 
 def print_status(server):
-    """Retrieve and log the status of programs from the XML-RPC server."""
+    """Retrieve and log the status of programs from the XML-RPC server with dynamically adjusted column widths."""
     status = server.status()
-    headers = ["Name", "State", "Uptime", "Restarts"]
-    col_widths = [20, 10, 20, 10]
 
-    # Print header
+    # Define headers
+    headers = ["Name", "State", "Uptime", "Restarts"]
+
+    # Convert status data into rows
+    rows = [[s["name"], str(s["state"]), format_uptime(s["uptime"]), str(s["restart_count"])] for s in status]
+
+    # Compute column widths based on maximum content length
+    col_widths = [max(len(header), *(len(row[i]) for row in rows)) + 2 for i, header in enumerate(headers)]
+
+    # Print header row
     header_row = "".join(f"{header:<{width}}" for header, width in zip(headers, col_widths, strict=False))
     logging.info(header_row)
     logging.info("-" * sum(col_widths))
 
     # Print status rows
-    for s in status:
-        uptime_str = format_uptime(s["uptime"])
-        row = f"{s['name']:<{col_widths[0]}}{s['state']:<{col_widths[1]}}{uptime_str:<{col_widths[2]}}{s['restart_count']:<{col_widths[3]}}"
-        logging.info(row)
+    for row in rows:
+        row_str = "".join(f"{cell:<{col_widths[i]}}" for i, cell in enumerate(row))
+        logging.info(row_str)
 
 
 def print_result(result, program, action):

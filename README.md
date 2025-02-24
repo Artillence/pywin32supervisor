@@ -12,5 +12,5 @@ sc delete MySupervisorService
 # Works:
 
 ```
-python supervisor_service.py install --config "C:\tmp\ims_windows_deploy\inventory_source\configs\server_configs\supervisord.conf" --install-dir "C:\tmp\ims_windows_deploy\inventory_source"
+python supervisor.py install --config "C:\tmp\ims_windows_deploy\inventory_source\configs\server_configs\supervisord.conf" --install-dir "C:\tmp\ims_windows_deploy\inventory_source"
 ```
