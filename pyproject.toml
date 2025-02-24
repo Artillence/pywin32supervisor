@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "pywin32supervisor"
 version = "0.0.1"
 description = "Python win32 service similar to supervisor for Unix-based systems."
-readme = "README.rst"
+readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "Artillence", email = "greg.karz@artillence.com" }]
 license = { file = "LICENSE" }
