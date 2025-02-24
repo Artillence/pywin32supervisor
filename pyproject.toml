@@ -21,4 +21,4 @@ packages = { find = {} }
 include-package-data = true
 
 [project.scripts]
-pywin32supervisor = "pywin32supervisor:main"
+pywin32supervisor = "supervisor:main"
