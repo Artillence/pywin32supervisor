@@ -25,6 +25,9 @@ logging.basicConfig(
     handlers=[logging.StreamHandler()],
 )
 
+# Command parameter to start the service itself.
+SERVICE_COMMAND_CONSTANT = "service"
+
 
 class Program:
     """Represents a managed program."""
@@ -335,7 +338,7 @@ def main():
 
 def is_service_mode():
     """Check if the script is started in service mode."""
-    return len(sys.argv) > 1 and sys.argv[1] == "service"
+    return len(sys.argv) > 1 and sys.argv[1] == SERVICE_COMMAND_CONSTANT
 
 
 def start_service_mode():
@@ -370,14 +373,14 @@ def handle_service_command(args, parser):
     """Handle service-related commands like install, start, stop, etc."""
     if args.service == "install":
         validate_install_arguments(args, parser)
-        MyServiceFramework._exe_args_ += f' service --config "{args.config}"'
+        MyServiceFramework._exe_args_ += f' {SERVICE_COMMAND_CONSTANT} --config "{args.config}"'
         if args.env:
             for key, value in args.env:
                 MyServiceFramework._exe_args_ += f' --env "{key}={value}"'
 
     keys_to_remove = {"--service", "--config", "--env"}
     filtered_argv = [*filter_args(sys.argv, keys_to_remove), args.service]
-
+    print(filtered_argv)  # noqa: T201
     sys.frozen = True
     win32serviceutil.HandleCommandLine(MyServiceFramework, argv=filtered_argv)
 
