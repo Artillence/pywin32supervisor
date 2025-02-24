@@ -162,13 +162,16 @@ class MyServiceFramework(win32serviceutil.ServiceFramework):
         self.monitor_programs()
 
     def parse_arguments(self):
-        """Parses command-line arguments."""
         parser = argparse.ArgumentParser()
         parser.add_argument("--config", required=True)
-        parser.add_argument("--env", action="append", type=lambda kv: kv.split("=", 1), help="Environment variable as NAME=VALUE (can be repeated)")
-
+        parser.add_argument(
+            "--env",
+            action="append",
+            type=lambda kv: tuple(kv.split("=", 1)),
+            help="Environment variable as NAME=VALUE (can be repeated)",
+        )
         argv = sys.argv[2:]
-        if argv[0] == "debug":
+        if argv and argv[0] == "debug":  # Check for empty argv to avoid IndexError
             argv = argv[1:]
         return parser.parse_args(argv)  # Skip script and "service"
 
@@ -231,9 +234,12 @@ class MyServiceFramework(win32serviceutil.ServiceFramework):
             if program.autostart:
                 program.start_program()
 
+    def is_running(self):
+        return self.running
+
     def monitor_programs(self):
         """Monitors the running programs and restarts if necessary."""
-        while self.running:
+        while self.is_running():
             time.sleep(1)
             for program in self.programs.values():
                 if program.process is not None and program.process.poll() is not None and not program.is_starting:
@@ -318,15 +324,17 @@ class MyServiceFramework(win32serviceutil.ServiceFramework):
 
 def filter_args(args, keys_to_remove):
     filtered_args = []
-    skip_next = False
-    for arg in args:
-        if skip_next:
-            skip_next = False
-            continue
-        if arg in keys_to_remove:
-            skip_next = True
-            continue
-        filtered_args.append(arg)
+    i = 0
+    while i < len(args):
+        if args[i] in keys_to_remove:
+            # Skip key and value only if the next arg is a value (not a flag or command)
+            if i + 1 < len(args) and not args[i + 1].startswith("--"):
+                i += 2
+            else:
+                i += 1
+        else:
+            filtered_args.append(args[i])
+            i += 1
     return filtered_args
 
 

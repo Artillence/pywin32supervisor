@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "pywin32supervisor"
 version = "0.0.1"
 description = "Python win32 service similar to supervisor for Unix-based systems."
-readme = "README.rst"
+readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "Artillence", email = "greg.karz@artillence.com" }]
 license = { file = "LICENSE" }
@@ -20,6 +20,8 @@ dependencies = [
 dev = [
     "ruff==0.9.7",        # Matches the version in .pre-commit-config.yaml
     "pre-commit>=4.0.1",  # Ensure compatibility with modern setups
+    "pytest>=7.0.0",      # Added for running tests
+    "pytest-cov>=4.0.0"   # Added for code coverage
 ]
 
 [tool.setuptools]

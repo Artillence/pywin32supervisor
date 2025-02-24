@@ -1,0 +1,53 @@
+name: Test and Coverage
+
+on:
+  pull_request:
+    branches:
+      - main  # Adjust this to your default branch if different
+
+permissions:
+  contents: read
+  pull-requests: write  # Required for commenting on PRs
+
+jobs:
+  test-and-coverage:
+    runs-on: windows-latest  # Use Windows since pywin32supervisor is Windows-specific
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ --cov=pywin32supervisor --cov-report=lcov --cov-report=term-missing
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+
+      - name: Generate coverage report
+        if: success()  # Only run if tests pass
+        shell: pwsh  # Explicitly use PowerShell
+        run: |
+          # Check if coverage.lcov exists using PowerShell syntax
+          if (-not (Test-Path coverage.lcov)) {
+            Write-Error "Coverage file not found!"
+            exit 1
+          }
+
+      - name: Report coverage
+        if: success()
+        uses: romeovs/lcov-reporter-action@v0.4.0
+        with:
+          lcov-file: ./coverage.lcov
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delete-old-comments: true
+          title: "Code Coverage Report"
