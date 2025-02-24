@@ -1,5 +1,6 @@
 import argparse
 import configparser
+import ctypes
 import logging
 import os
 import re
@@ -11,6 +12,9 @@ import xmlrpc.client
 import xmlrpc.server
 
 import servicemanager
+import win32api
+import win32con
+import win32job
 import win32service
 import win32serviceutil
 
@@ -25,7 +29,7 @@ logging.basicConfig(
 class Program:
     """Represents a managed program."""
 
-    def __init__(self, name, config):
+    def __init__(self, name, config, job_handle=None):
         self.name = name
         self.command = config["command"]
         self.autostart = config.getboolean("autostart", False)
@@ -41,6 +45,8 @@ class Program:
         self.stdout_file = None
         self.stderr_file = None
         self.is_starting = False
+
+        self.job_handle = job_handle
 
     def start_program(self):
         if self.process is not None and self.process.poll() is None:
@@ -64,7 +70,9 @@ class Program:
                 stderr = None
 
             cmd_args = self.command.split()
-            self.process = subprocess.Popen(cmd_args, stdout=self.stdout_file, stderr=stderr)  # noqa: S603 `subprocess` call: check for execution of untrusted input. user has to make sure that cmd_args is safe.
+            self.process = subprocess.Popen(cmd_args, stdout=self.stdout_file, stderr=stderr, start_new_session=False)  # noqa: S603 `subprocess` call: check for execution of untrusted input. user has to make sure that cmd_args is safe.
+            self._add_process_to_job()
+
             self.start_time = time.time()
             # Reset backoff if process successfully starts
             threading.Thread(target=self._check_start_success, daemon=True).start()
@@ -78,6 +86,14 @@ class Program:
         if self.process and self.process.poll() is None:
             self.backoff_index = 0  # Reset backoff on successful start
         self.is_starting = False
+
+    def _add_process_to_job(self):
+        # Convert process ID to handle with required permissions
+        perms = win32con.PROCESS_TERMINATE | win32con.PROCESS_SET_QUOTA
+        process_handle = win32api.OpenProcess(perms, bInherit=False, pid=self.process.pid)
+
+        # Assign the child process to the Job Object
+        win32job.AssignProcessToJobObject(self.job_handle, process_handle)
 
     def stop_program(self):
         if self.process is not None and self.process.poll() is None:
@@ -124,6 +140,8 @@ class MyServiceFramework(win32serviceutil.ServiceFramework):
         # Load and process config
         config = self.load_config(self.config_path)
 
+        self.job_handle = self.create_job()
+
         # Load programs from config
         self.programs = self.load_programs(config)
 
@@ -164,13 +182,33 @@ class MyServiceFramework(win32serviceutil.ServiceFramework):
 
         return config
 
+    def create_job(self):
+        """Needed to ensure that all processes exit when the service is terminated.
+
+        See also: https://stackoverflow.com/questions/23434842/python-how-to-kill-child-processes-when-parent-dies
+        """
+
+        # Create a Job Object
+        job_handle = win32job.CreateJobObject(None, "")
+
+        # Set the job object to terminate all child processes when the main process exits
+        extended_info = win32job.QueryInformationJobObject(job_handle, win32job.JobObjectExtendedLimitInformation)
+        extended_info["BasicLimitInformation"]["LimitFlags"] = win32job.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+        win32job.SetInformationJobObject(job_handle, win32job.JobObjectExtendedLimitInformation, extended_info)
+
+        # Ensure the main process is in the job object to avoid the race condition
+        current_process_handle = ctypes.windll.kernel32.GetCurrentProcess()
+        win32job.AssignProcessToJobObject(job_handle, current_process_handle)
+
+        return job_handle
+
     def load_programs(self, config):
         """Loads program definitions from the configuration."""
         programs = {}
         for section in config.sections():
             if section.startswith("program:"):
                 program_name = section.split(":", 1)[1]
-                programs[program_name] = Program(program_name, config[section])
+                programs[program_name] = Program(program_name, config[section], self.job_handle)
         return programs
 
     def start_xmlrpc_server(self):
@@ -364,7 +402,7 @@ def handle_program_command(args):
         elif args.command == "restart":
             print_result(server.restart(args.program), args.program, "Restarted")
     except ConnectionRefusedError:
-        logging.exception("Service is not running. Please start the service first with 'python script.py --service start'.")
+        logging.exception("Service is not running. Please start the service first with 'python supervisor.py --service start'.")
 
     except ValueError:
         logging.exception("Error")
