@@ -1,0 +1,42 @@
+# Support Python 3.10+.
+target-version = "py310"
+
+exclude = []
+
+# Set the maximum line length.
+line-length = 150
+
+#because of private-member-access (SLF001) (some of them nay need to be checked)
+[lint.flake8-self]
+ignore-names = []
+
+[lint.per-file-ignores]
+"__init__.py" = [
+    "F403", #undefined-local-with-import-star (F403) we need to import all of the moduls
+    "F401", #unused-import (F401) lots of unused imports in __init__ 
+]
+
+[lint.pylint]
+max-args = 8            #because of too-many-arguments (PLR0913) (may need to be lowered in future)
+max-returns = 10        ##because of too-many-return-statements (PLR0911) (may need to be lowered in future)
+
+[lint]
+# explicitly adding the rules.
+extend-select = [
+    "E","W","I","N","D","UP","YTT","ASYNC","S","BLE","FBT","B","A","COM","C4",
+    "DJ","ISC","LOG","G","INP","PIE","T20","PYI","PT","Q","RSE","RET","SLF","SIM",
+    "TCH","ARG", "TD","ERA","PGH","PL","TRY","FLY","PERF","FURB","DOC","RUF","TID"
+]
+
+ignore = [
+    # These should be fixed and enabled in the future
+    "E999","D407","D408","B028","ERA001",
+    "E501","INP001","D", "ARG002", "RUF012",
+    "TRY003","TD","PT",
+    
+    # Checks for uses of isinstance/issubclass that take a tuple 
+    # of types for comparison.
+    # Deactivated because it can make the code slow: 
+    # https://github.com/astral-sh/ruff/issues/7871
+    "UP038",
+]
