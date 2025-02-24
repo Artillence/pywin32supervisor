@@ -86,11 +86,11 @@ class Program:
                 self.process.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 self.process.kill()
-        self._close_files()
+        self.close_files()
         self.process = None
         self.is_starting = False
 
-    def _close_files(self):
+    def close_files(self):
         """Closes log file handles if they are open."""
         if self.stdout_file:
             self.stdout_file.close()
@@ -101,7 +101,7 @@ class Program:
 
     def __del__(self):
         """Destructor to ensure resources are freed when the object is deleted."""
-        self._close_files()
+        self.close_files()
 
 
 class MyServiceFramework(win32serviceutil.ServiceFramework):
@@ -189,7 +189,7 @@ class MyServiceFramework(win32serviceutil.ServiceFramework):
             time.sleep(1)
             for program in self.programs.values():
                 if program.process is not None and program.process.poll() is not None and not program.is_starting:
-                    program._close_files()
+                    program.close_files()
                     if program.autorestart:
                         backoff = program.backoff_periods[min(program.backoff_index, len(program.backoff_periods) - 1)]
                         time.sleep(backoff)
@@ -225,7 +225,7 @@ class MyServiceFramework(win32serviceutil.ServiceFramework):
                     "state": state,
                     "uptime": uptime,
                     "restart_count": program.restart_count,
-                }
+                },
             )
         return status_list
 
@@ -379,21 +379,16 @@ def print_status(server):
     status = server.status()
     headers = ["Name", "State", "Uptime", "Restarts"]
     col_widths = [20, 10, 20, 10]
-    
+
     # Print header
-    header_row = "".join(f"{header:<{width}}" for header, width in zip(headers, col_widths))
+    header_row = "".join(f"{header:<{width}}" for header, width in zip(headers, col_widths, strict=False))
     logging.info(header_row)
     logging.info("-" * sum(col_widths))
-    
+
     # Print status rows
     for s in status:
         uptime_str = format_uptime(s["uptime"])
-        row = (
-            f"{s['name']:<{col_widths[0]}}"
-            f"{s['state']:<{col_widths[1]}}"
-            f"{uptime_str:<{col_widths[2]}}"
-            f"{s['restart_count']:<{col_widths[3]}}"
-        )
+        row = f"{s['name']:<{col_widths[0]}}{s['state']:<{col_widths[1]}}{uptime_str:<{col_widths[2]}}{s['restart_count']:<{col_widths[3]}}"
         logging.info(row)
 
 
