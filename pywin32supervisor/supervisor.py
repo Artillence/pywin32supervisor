@@ -399,9 +399,12 @@ def handle_service_command(args, parser):
 
 
 def validate_install_arguments(args, parser):
-    """Ensure required arguments are provided for service installation."""
+    """Ensure required arguments are provided for service installation and that the config file exists."""
     if not args.config:
         parser.error("--config is required for install")
+
+    if not os.path.isfile(args.config):
+        parser.error(f"Config file '{args.config}' does not exist.")
 
 
 def handle_program_command(args):
