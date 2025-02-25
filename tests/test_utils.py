@@ -70,7 +70,7 @@ class TestUtils(unittest.TestCase):
     def test_handle_service_command_install(self, mock_handle):
         parser = create_argument_parser()
         args = parser.parse_args(["--service", "install", "--config", "test.conf"])
-        with patch("pywin32supervisor.supervisor.MyServiceFramework"):
+        with patch("pywin32supervisor.supervisor.MyServiceFramework"), patch("os.path.isfile", return_value=True):
             handle_service_command(args, parser)
             mock_handle.assert_called_once()
 
@@ -80,10 +80,8 @@ class TestUtils(unittest.TestCase):
         with self.assertRaises(SystemExit):
             validate_install_arguments(args, parser)
 
-    @patch("xmlrpc.client.ServerProxy")
+    @patch("xmlrpc.client.ServerProxy", side_effect=ConnectionRefusedError)
     def test_handle_program_command_connection_error(self, mock_proxy):
-        mock_server = mock_proxy.return_value
-        mock_server.status.side_effect = ConnectionRefusedError  # Simulate connection error on method call
         args = argparse.Namespace(command="status", program="all")
         with patch("logging.exception") as mock_log:
             handle_program_command(args)

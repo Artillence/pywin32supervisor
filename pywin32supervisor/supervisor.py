@@ -4,6 +4,7 @@ import ctypes
 import logging
 import os
 import re
+import socket
 import subprocess
 import sys
 import threading
@@ -398,25 +399,29 @@ def handle_service_command(args, parser):
 
 
 def validate_install_arguments(args, parser):
-    """Ensure required arguments are provided for service installation."""
+    """Ensure required arguments are provided for service installation and that the config file exists."""
     if not args.config:
         parser.error("--config is required for install")
+
+    if not os.path.isfile(args.config):
+        parser.error(f"Config file '{args.config}' does not exist.")
 
 
 def handle_program_command(args):
     """Handle program-related commands such as status, start, stop, and restart."""
-    server = xmlrpc.client.ServerProxy("http://127.0.0.1:9001")
 
+    socket.setdefaulttimeout(10)
     try:
-        if args.command == "status":
-            print_status(server)
-        elif args.command == "start":
-            print_result(server.start(args.program), args.program, "Started")
-        elif args.command == "stop":
-            print_result(server.stop(args.program), args.program, "Stopped")
-        elif args.command == "restart":
-            print_result(server.restart(args.program), args.program, "Restarted")
-    except ConnectionRefusedError:
+        with xmlrpc.client.ServerProxy("http://127.0.0.1:9001") as server:
+            if args.command == "status":
+                print_status(server)
+            elif args.command == "start":
+                print_result(server.start(args.program), args.program, "Started")
+            elif args.command == "stop":
+                print_result(server.stop(args.program), args.program, "Stopped")
+            elif args.command == "restart":
+                print_result(server.restart(args.program), args.program, "Restarted")
+    except (ConnectionRefusedError, TimeoutError):
         logging.exception("Service is not running. Please start the service first with 'python supervisor.py --service start'.")
 
     except ValueError:
