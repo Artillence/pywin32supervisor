@@ -364,11 +364,22 @@ def start_service_mode():
 def create_argument_parser():
     """Create and return the argument parser."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("--service", choices=["install", "remove", "start", "stop", "restart", "debug"])
-    parser.add_argument("--config")
+    parser.add_argument("--service", choices=["install", "remove", "start", "stop", "restart", "debug"], help="Service-related command")
+    # Options for 'install' and 'update'
+    parser.add_argument("--startup", choices=["manual", "auto", "disabled", "delayed"], help="How the service starts (default: manual)")
+    parser.add_argument("--username", help="The username the service runs under (domain\\username)")
+    parser.add_argument("--password", help="The password for the username")
+    parser.add_argument("--interactive", action="store_true", help="Allow the service to interact with the desktop")
+    parser.add_argument("--perfmonini", help=".ini file for performance monitor data")
+    parser.add_argument("--perfmondll", help=".dll file for performance data")
+    # Options for 'start' and 'stop'
+    parser.add_argument("--wait", type=int, help="Seconds to wait for service to start or stop")
+    # Custom options
+    parser.add_argument("--config", help="Configuration file path")
     parser.add_argument("--env", action="append", type=lambda kv: kv.split("=", 1), help="Environment variable as NAME=VALUE (can be repeated)")
-    parser.add_argument("command", nargs="?", choices=["status", "start", "stop", "restart"])
-    parser.add_argument("program", nargs="?", default="all")
+    # Positional arguments for non-service mode
+    parser.add_argument("command", nargs="?", choices=["status", "start", "stop", "restart"], help="Command to execute (non-service mode)")
+    parser.add_argument("program", nargs="?", default="all", help="Program to manage (non-service mode)")
     return parser
 
 
@@ -391,10 +402,24 @@ def handle_service_command(args, parser):
             for key, value in args.env:
                 MyServiceFramework._exe_args_ += f' --env "{key}={value}"'
 
-    keys_to_remove = {"--service", "--config", "--env"}
-    filtered_argv = [*filter_args(sys.argv, keys_to_remove), args.service]
+    # Find the index of '--service'
+    try:
+        i = sys.argv.index("--service")
+    except ValueError as e:
+        raise ValueError(" '--service' not found in sys.argv") from e
 
-    sys.frozen = True  # For debug command to work properly. See also HandleCommandLine source code.
+    command = sys.argv[i + 1]  # The service command (e.g., 'install', 'start')
+    # Remove '--service' and its value
+    argv_without_service = sys.argv[:i] + sys.argv[i + 2 :]
+
+    # Remove --config and --env from remaining arguments
+    options_to_remove = ["--config", "--env"]
+    remaining_args = filter_args(argv_without_service[1:], options_to_remove)
+
+    # Construct filtered_argv: script name, command, remaining arguments
+    filtered_argv = [sys.argv[0], *remaining_args, command]
+
+    sys.frozen = True  # Required for 'debug' command compatibility
     win32serviceutil.HandleCommandLine(MyServiceFramework, argv=filtered_argv)
 
 
