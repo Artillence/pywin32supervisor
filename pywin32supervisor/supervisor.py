@@ -41,6 +41,7 @@ class Program:
         self.stdout_logfile = config.get("stdout_logfile", None)
         self.stderr_logfile = config.get("stderr_logfile", None)
         self.redirect_stderr = config.getboolean("redirect_stderr", False)
+        self.directory = config.get("directory", None)
         self.process = None
         self.start_time = None
         self.restart_count = 0
@@ -74,7 +75,7 @@ class Program:
                 stderr = None
 
             cmd_args = self.command.split()
-            self.process = subprocess.Popen(cmd_args, stdout=self.stdout_file, stderr=stderr, start_new_session=False)  # noqa: S603 `subprocess` call: check for execution of untrusted input. user has to make sure that cmd_args is safe.
+            self.process = subprocess.Popen(cmd_args, stdout=self.stdout_file, stderr=stderr, start_new_session=False, cwd=self.directory)  # noqa: S603 `subprocess` call: check for execution of untrusted input. user has to make sure that cmd_args is safe.
             self._add_process_to_job()
 
             self.start_time = time.time()
