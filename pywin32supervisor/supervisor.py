@@ -411,8 +411,8 @@ def handle_program_command(args):
     """Handle program-related commands such as status, start, stop, and restart."""
 
     socket.setdefaulttimeout(10)
-    with xmlrpc.client.ServerProxy("http://127.0.0.1:9001") as server:
-        try:
+    try:
+        with xmlrpc.client.ServerProxy("http://127.0.0.1:9001") as server:
             if args.command == "status":
                 print_status(server)
             elif args.command == "start":
@@ -421,11 +421,11 @@ def handle_program_command(args):
                 print_result(server.stop(args.program), args.program, "Stopped")
             elif args.command == "restart":
                 print_result(server.restart(args.program), args.program, "Restarted")
-        except (ConnectionRefusedError, TimeoutError):
-            logging.exception("Service is not running. Please start the service first with 'python supervisor.py --service start'.")
+    except (ConnectionRefusedError, TimeoutError):
+        logging.exception("Service is not running. Please start the service first with 'python supervisor.py --service start'.")
 
-        except ValueError:
-            logging.exception("Error")
+    except ValueError:
+        logging.exception("Error")
 
 
 def format_uptime(uptime):
