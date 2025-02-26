@@ -1,6 +1,7 @@
 import argparse
 import configparser
 import ctypes
+import io
 import logging
 import os
 import re
@@ -60,7 +61,8 @@ class Program:
         try:
             if self.stdout_logfile:
                 os.makedirs(os.path.dirname(self.stdout_logfile), exist_ok=True)
-                self.stdout_file = open(self.stdout_logfile, "a")  # noqa: SIM115 Use a context manager for opening files. File handle is needed during the subprocess' lifetime.
+                raw_stdout_file = open(self.stdout_logfile, "ab", buffering=0)  # noqa: SIM115 Use a context manager for opening files. File handle is needed during the subprocess' lifetime.
+                self.stdout_file = io.TextIOWrapper(raw_stdout_file, encoding="utf-8", line_buffering=True)  # Line buffered text wrapper
             else:
                 self.stdout_file = None
             if self.redirect_stderr:
@@ -68,7 +70,8 @@ class Program:
                 self.stderr_file = None
             elif self.stderr_logfile:
                 os.makedirs(os.path.dirname(self.stderr_logfile), exist_ok=True)
-                self.stderr_file = open(self.stderr_logfile, "a")  # noqa: SIM115 Use a context manager for opening files. File handle is needed during the subprocess' lifetime.
+                raw_stderr_file = open(self.stderr_logfile, "ab", buffering=0)  # noqa: SIM115 Use a context manager for opening files. File handle is needed during the subprocess' lifetime.
+                self.stderr_file = io.TextIOWrapper(raw_stderr_file, encoding="utf-8", line_buffering=True)
                 stderr = self.stderr_file
             else:
                 self.stderr_file = None
