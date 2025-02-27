@@ -1,7 +1,7 @@
 import configparser
 import time
 import unittest
-from unittest.mock import Mock, mock_open, patch
+from unittest.mock import Mock, call, mock_open, patch
 
 from pywin32supervisor.supervisor import Program
 
@@ -83,7 +83,7 @@ class TestProgram(unittest.TestCase):
 
         # Assert: Verify the expected interactions
         mock_process.assert_called_once_with(process.pid)
-        mock_parent.children.assert_called_once_with(recursive=True)
+        mock_parent.children.assert_has_calls([call(recursive=True), call(recursive=True)])
         mock_parent.terminate.assert_called_once()
         mock_parent.wait.assert_called_once_with(5)
         stdout_file.close.assert_called_once()
