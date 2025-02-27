@@ -64,16 +64,28 @@ class TestProgram(unittest.TestCase):
             program.start_program()
             mock_popen.assert_not_called()  # Should not start a new process
 
-    def test_stop_program(self):
+    @patch("pywin32supervisor.supervisor.psutil.Process")
+    def test_stop_program(self, mock_process):
+        # Arrange: Set up the Program instance and mocks
         program = Program("testprog", self.config, self.job_handle)
         process = Mock(poll=lambda: None)
         program.process = process
         stdout_file = program.stdout_file = Mock(spec=["close"])
         stderr_file = program.stderr_file = Mock(spec=["close"])
 
+        # Mock the psutil.Process behavior
+        mock_parent = Mock()
+        mock_process.return_value = mock_parent
+        mock_parent.children.return_value = []  # No child processes
+
+        # Act: Call the method under test
         program.stop_program()
 
-        process.terminate.assert_called_once()
+        # Assert: Verify the expected interactions
+        mock_process.assert_called_once_with(process.pid)
+        mock_parent.children.assert_called_once_with(recursive=True)
+        mock_parent.terminate.assert_called_once()
+        mock_parent.wait.assert_called_once_with(5)
         stdout_file.close.assert_called_once()
         stderr_file.close.assert_called_once()
         self.assertIsNone(program.stdout_file)
