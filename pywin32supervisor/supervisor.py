@@ -13,6 +13,7 @@ import time
 import xmlrpc.client
 import xmlrpc.server
 
+import psutil
 import servicemanager
 import win32api
 import win32con
@@ -29,6 +30,25 @@ logging.basicConfig(
 
 # Command parameter to start the service itself.
 SERVICE_COMMAND_CONSTANT = "service"
+
+
+def kill_process_tree(pid):
+    """Recursively kill a process and all its children."""
+    try:
+        parent = psutil.Process(pid)
+        for child in parent.children(recursive=True):
+            child.terminate()
+        _, still_alive = psutil.wait_procs(parent.children(recursive=True), timeout=5)
+        for child in still_alive:
+            child.kill()
+        parent.terminate()
+        try:
+            parent.wait(5)
+        except psutil.TimeoutExpired:
+            parent.kill()
+            parent.wait()
+    except psutil.NoSuchProcess:
+        pass
 
 
 class Program:
@@ -105,11 +125,7 @@ class Program:
 
     def stop_program(self):
         if self.process is not None and self.process.poll() is None:
-            self.process.terminate()
-            try:
-                self.process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                self.process.kill()
+            kill_process_tree(self.process.pid)
         self.close_files()
         self.process = None
         self.is_starting = False

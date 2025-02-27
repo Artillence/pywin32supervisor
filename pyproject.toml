@@ -13,7 +13,8 @@ license = { file = "LICENSE" }
 urls = { Homepage = "https://github.com/Artillence/pywin32supervisor" }
 
 dependencies = [
-    "pywin32==308"
+    "pywin32==308",
+    "psutil==7.0.0"
 ]
 
 [project.optional-dependencies]
